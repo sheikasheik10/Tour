@@ -1,0 +1,138 @@
+// Serendib — data model.
+// Local dev uses SQLite. To move to Postgres/MySQL later: change `provider`
+// below and set DATABASE_URL in .env, then run `npm run db:push && npm run db:seed`.
+// List-like fields are stored as JSON strings so the schema stays portable.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Destination {
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  name        String
+  region      String
+  tagline     String
+  description String
+  lat         Float
+  lng         Float
+  coast       String // "west" | "east" | "inland" — drives the monsoon logic
+  bestMonths  String // JSON number[] (1-12)
+  heroImage   String
+  gallery     String // JSON string[]
+  highlights  String // JSON string[]
+  order       Int          @default(0)
+  stays       Stay[]
+  experiences Experience[]
+}
+
+model Stay {
+  id            String      @id @default(cuid())
+  slug          String      @unique
+  name          String
+  category      String
+  summary       String
+  description   String
+  images        String // JSON string[]
+  amenities     String // JSON string[]
+  rating        Float
+  reviewCount   Int
+  priceFrom     Int // USD per night
+  featured      Boolean     @default(false)
+  checkInTime   String      @default("14:00")
+  checkOutTime  String      @default("11:00")
+  destinationId String
+  destination   Destination @relation(fields: [destinationId], references: [id])
+  rooms         Room[]
+  bookings      Booking[]
+}
+
+model Room {
+  id          String    @id @default(cuid())
+  name        String
+  description String
+  image       String
+  sleeps      Int
+  bed         String
+  sizeSqm     Int
+  price       Int // USD per night
+  units       Int       @default(3) // how many identical rooms exist
+  stayId      String
+  stay        Stay      @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  bookings    Booking[]
+}
+
+model Experience {
+  id            String      @id @default(cuid())
+  slug          String      @unique
+  title         String
+  category      String
+  summary       String
+  description   String
+  image         String
+  duration      String
+  startTime     String
+  price         Int // USD per person
+  maxGuests     Int
+  rating        Float
+  highlights    String // JSON string[]
+  featured      Boolean     @default(false)
+  destinationId String
+  destination   Destination @relation(fields: [destinationId], references: [id])
+  bookings      Booking[]
+}
+
+model Booking {
+  id           String      @id @default(cuid())
+  ref          String      @unique
+  kind         String // "stay" | "experience"
+  status       String      @default("confirmed") // confirmed | cancelled
+  checkIn      DateTime
+  checkOut     DateTime?
+  nights       Int?
+  guests       Int
+  guestName    String
+  email        String
+  phone        String?
+  country      String?
+  notes        String?
+  subtotal     Int
+  taxes        Int
+  total        Int
+  createdAt    DateTime    @default(now())
+  stayId       String?
+  stay         Stay?       @relation(fields: [stayId], references: [id])
+  roomId       String?
+  room         Room?       @relation(fields: [roomId], references: [id])
+  experienceId String?
+  experience   Experience? @relation(fields: [experienceId], references: [id])
+
+  @@index([email])
+  @@index([roomId, checkIn])
+}
+
+model Enquiry {
+  id         String   @id @default(cuid())
+  ref        String   @unique
+  name       String
+  email      String
+  startDate  DateTime
+  travellers Int
+  style      String
+  budget     String
+  route      String // JSON {slug, name, nights}[]
+  notes      String?
+  status     String   @default("new")
+  createdAt  DateTime @default(now())
+}
+
+model Subscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
